@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+RUN apk add --no-cache \
+  tesseract-ocr \
+  tesseract-ocr-data-por \
+  tesseract-ocr-data-eng \
+  poppler-utils \
+  ghostscript
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+CMD ["npm", "run", "worker:dev"]
