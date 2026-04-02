@@ -28,6 +28,9 @@ export interface Document {
   expires_at: Date | null;
   is_searchable: boolean;
   ocr_status: "pending" | "processing" | "done" | "failed";
+  process_type_id: string | null;
+  current_state_id: string | null;
+  assigned_to: string | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -62,6 +65,10 @@ export type AuditAction =
   | "document.restore"
   | "document.metadata.update"
   | "document.expiry.update"
+  | "document.process_type.assign"
+  | "document.state.transition"
+  | "document.group.assign"
+  | "document.group.remove"
   | "ocr.started"
   | "ocr.completed"
   | "ocr.failed";
@@ -86,4 +93,125 @@ export interface PaginatedResult<T> {
   page: number;
   limit: number;
   pages: number;
+}
+
+// Groups
+export interface Group {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: Date;
+}
+
+export interface GroupMember {
+  group_id: string;
+  user_id: string;
+  added_by: string | null;
+  added_at: Date;
+  user_name?: string;
+  user_email?: string;
+}
+
+// Process types / states / transitions
+export interface ProcessType {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: Date;
+}
+
+export interface ProcessState {
+  id: string;
+  process_type_id: string;
+  name: string;
+  label: string;
+  is_initial: boolean;
+  is_terminal: boolean;
+  color: string;
+  position_order: number;
+}
+
+export interface ProcessTransition {
+  id: string;
+  process_type_id: string;
+  from_state_id: string;
+  to_state_id: string;
+  label: string;
+  required_role: UserRole | null;
+}
+
+export interface ProcessHistory {
+  id: string;
+  document_id: string;
+  from_state_id: string | null;
+  to_state_id: string;
+  changed_by: string | null;
+  comment: string | null;
+  changed_at: Date;
+  // joined fields
+  from_state_label?: string;
+  to_state_label?: string;
+  changed_by_name?: string;
+}
+
+// Deadlines
+export type DeadlineStatus = "pending" | "met" | "missed";
+
+export interface ProcessDeadline {
+  id: string;
+  document_id: string;
+  label: string;
+  due_at: Date;
+  target_state_id: string | null;
+  alert_days_before: number[];
+  status: DeadlineStatus;
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Metadata schemas
+export interface SchemaField {
+  key: string;
+  label: string;
+  type: "text" | "date" | "number" | "select";
+  required: boolean;
+  options?: string[];
+  hint?: string;
+}
+
+export interface MetadataSchema {
+  id: string;
+  process_type_id: string;
+  fields: SchemaField[];
+  created_at: Date;
+  updated_at: Date;
+}
+
+// PDF annotations
+export type AnnotationType = "highlight" | "comment";
+
+export interface AnnotationRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PdfAnnotation {
+  id: string;
+  document_id: string;
+  user_id: string | null;
+  page: number;
+  type: AnnotationType;
+  rect: AnnotationRect;
+  selected_text: string | null;
+  content: string | null;
+  color: string;
+  created_at: Date;
+  updated_at: Date;
+  // joined
+  user_name?: string;
 }

@@ -23,7 +23,11 @@ async function run() {
     const migrationsDir = join(__dirname);
     const files = (await readdir(migrationsDir))
       .filter((f) => f.endsWith(".sql"))
-      .sort();
+      .sort((a, b) => {
+        const numA = parseInt(a.split("_")[0], 10);
+        const numB = parseInt(b.split("_")[0], 10);
+        return numA - numB;
+      });
 
     for (const file of files) {
       const applied = await client.query(

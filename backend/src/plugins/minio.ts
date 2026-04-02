@@ -18,23 +18,12 @@ export default fp(async (fastify: FastifyInstance) => {
     secretKey: config.MINIO_SECRET_KEY,
   });
 
-  // Ensure bucket exists
+  // Ensure bucket exists. No public bucket policy is set — the bucket is
+  // private by default. Objects are accessed exclusively via presigned URLs
+  // signed with the root credentials, which bypass the need for any policy.
   const bucketExists = await minio.bucketExists(config.MINIO_BUCKET);
   if (!bucketExists) {
     await minio.makeBucket(config.MINIO_BUCKET, "us-east-1");
-    // Set bucket policy to private
-    const policy = JSON.stringify({
-      Version: "2012-10-17",
-      Statement: [
-        {
-          Effect: "Deny",
-          Principal: "*",
-          Action: ["s3:GetObject"],
-          Resource: [`arn:aws:s3:::${config.MINIO_BUCKET}/*`],
-        },
-      ],
-    });
-    await minio.setBucketPolicy(config.MINIO_BUCKET, policy);
   }
 
   fastify.decorate("minio", minio);

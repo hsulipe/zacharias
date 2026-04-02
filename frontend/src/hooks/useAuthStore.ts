@@ -19,7 +19,11 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "ged-auth",
-      partialize: (state) => ({ user: state.user, access_token: state.access_token }),
+      partialize: (state) => ({
+        user: state.user,
+        access_token: state.access_token,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 );

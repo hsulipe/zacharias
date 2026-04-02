@@ -25,6 +25,10 @@ const envSchema = z.object({
 
   MAX_FILE_SIZE_MB: z.coerce.number().default(50),
 
+  // Public URL used to rewrite MinIO presigned URLs for browser access.
+  // Must be reachable by the browser (e.g. http://localhost:9000 in dev).
+  MINIO_PUBLIC_URL: z.string().optional(),
+
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().optional(),

@@ -13,7 +13,8 @@ export async function metadataRoutes(fastify: FastifyInstance) {
     { preHandler: [requireAuth] },
     async (request, reply) => {
       const { id } = request.params as { id: string };
-      const doc = await getDocumentById(fastify.db, id);
+      const user = request.user as JwtPayload;
+      const doc = await getDocumentById(fastify.db, id, { userId: user.sub, userRole: user.role });
       if (!doc) return reply.code(404).send({ error: "Document not found" });
 
       const metadata = await getMetadata(fastify.db, id);
@@ -32,7 +33,7 @@ export async function metadataRoutes(fastify: FastifyInstance) {
         entries: z.array(z.object({ key: z.string().min(1).max(100), value: z.string().max(1000) })),
       }).parse(request.body);
 
-      const doc = await getDocumentById(fastify.db, id);
+      const doc = await getDocumentById(fastify.db, id, { userId: user.sub, userRole: user.role });
       if (!doc) return reply.code(404).send({ error: "Document not found" });
 
       const metadata = await setMetadata(fastify.db, id, entries);
@@ -54,7 +55,8 @@ export async function metadataRoutes(fastify: FastifyInstance) {
     { preHandler: [requireAuth, requireRole("admin", "editor")] },
     async (request, reply) => {
       const { id, key } = request.params as { id: string; key: string };
-      const doc = await getDocumentById(fastify.db, id);
+      const user = request.user as JwtPayload;
+      const doc = await getDocumentById(fastify.db, id, { userId: user.sub, userRole: user.role });
       if (!doc) return reply.code(404).send({ error: "Document not found" });
 
       await deleteMetadataKey(fastify.db, id, key);

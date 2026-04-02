@@ -7,6 +7,8 @@ import DocumentsPage from "./pages/DocumentsPage";
 import DocumentDetailPage from "./pages/DocumentDetailPage";
 import AuditPage from "./pages/AuditPage";
 import UsersPage from "./pages/UsersPage";
+import GroupsPage from "./pages/GroupsPage";
+import ProcessTypesPage from "./pages/ProcessTypesPage";
 import Layout from "./components/Layout";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -48,6 +50,22 @@ export default function App() {
           element={
             <AdminRoute>
               <UsersPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="groups"
+          element={
+            <AdminRoute>
+              <GroupsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="process-types"
+          element={
+            <AdminRoute>
+              <ProcessTypesPage />
             </AdminRoute>
           }
         />

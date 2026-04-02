@@ -14,7 +14,12 @@ import { authRoutes } from "./modules/auth/auth.routes";
 import { documentRoutes } from "./modules/documents/documents.routes";
 import { metadataRoutes } from "./modules/metadata/metadata.routes";
 import { auditRoutes } from "./modules/audit/audit.routes";
+import { groupRoutes } from "./modules/groups/groups.routes";
+import { processTypeRoutes } from "./modules/process/process.routes";
+import { deadlineRoutes } from "./modules/deadlines/deadlines.routes";
+import { annotationRoutes } from "./modules/annotations/annotations.routes";
 import { startExpiryCron } from "./modules/expiry/expiry.service";
+import { startDeadlineCron } from "./modules/deadlines/deadlines.service";
 
 export async function buildApp() {
   const app = Fastify({
@@ -72,7 +77,11 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: "/auth" });
   await app.register(documentRoutes, { prefix: "/documents" });
   await app.register(metadataRoutes, { prefix: "/documents" });
+  await app.register(deadlineRoutes, { prefix: "/documents" });
+  await app.register(annotationRoutes, { prefix: "/documents" });
   await app.register(auditRoutes, { prefix: "/audit" });
+  await app.register(groupRoutes, { prefix: "/groups" });
+  await app.register(processTypeRoutes, { prefix: "/process-types" });
 
   // Health check
   app.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
@@ -83,8 +92,9 @@ export async function buildApp() {
 async function start() {
   const app = await buildApp();
 
-  // Start expiry cron
+  // Start crons
   startExpiryCron(app.db);
+  startDeadlineCron(app.db);
 
   try {
     await app.listen({ port: config.PORT, host: config.HOST });

@@ -1,6 +1,11 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../hooks/useAuthStore";
 
+const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+    isActive ? "bg-primary-700 text-white" : "text-primary-100 hover:bg-primary-800"
+  }`;
+
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -19,47 +24,27 @@ export default function Layout() {
           <p className="text-xs text-primary-100 mt-1">Gerenc. Eletrônico de Docs</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
-                isActive ? "bg-primary-700 text-white" : "text-primary-100 hover:bg-primary-800"
-              }`
-            }
-          >
+          <NavLink to="/" end className={NAV_LINK_CLASS}>
             Dashboard
           </NavLink>
-          <NavLink
-            to="/documents"
-            className={({ isActive }) =>
-              `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
-                isActive ? "bg-primary-700 text-white" : "text-primary-100 hover:bg-primary-800"
-              }`
-            }
-          >
+          <NavLink to="/documents" className={NAV_LINK_CLASS}>
             Documentos
           </NavLink>
           {user?.role === "admin" && (
             <>
-              <NavLink
-                to="/users"
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
-                    isActive ? "bg-primary-700 text-white" : "text-primary-100 hover:bg-primary-800"
-                  }`
-                }
-              >
+              <div className="pt-2 pb-1">
+                <p className="text-xs text-primary-400 uppercase tracking-wider px-3">Admin</p>
+              </div>
+              <NavLink to="/groups" className={NAV_LINK_CLASS}>
+                Grupos
+              </NavLink>
+              <NavLink to="/process-types" className={NAV_LINK_CLASS}>
+                Tipos de Processo
+              </NavLink>
+              <NavLink to="/users" className={NAV_LINK_CLASS}>
                 Usuários
               </NavLink>
-              <NavLink
-                to="/audit"
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
-                    isActive ? "bg-primary-700 text-white" : "text-primary-100 hover:bg-primary-800"
-                  }`
-                }
-              >
+              <NavLink to="/audit" className={NAV_LINK_CLASS}>
                 Auditoria
               </NavLink>
             </>
@@ -75,7 +60,10 @@ export default function Layout() {
               <p className="text-xs text-primary-300 capitalize">{user?.role}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="w-full text-left text-xs text-primary-300 hover:text-white transition-colors">
+          <button
+            onClick={handleLogout}
+            className="w-full text-left text-xs text-primary-300 hover:text-white transition-colors"
+          >
             Sair
           </button>
         </div>
