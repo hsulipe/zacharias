@@ -1,0 +1,200 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGION: us-central1          # must match terraform var.region
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  AR_REPO: ${{ secrets.GCP_PROJECT_ID }}/ged  # Artifact Registry repo path
+
+jobs:
+  # ── 1. CI gate ──────────────────────────────────────────────────────────────
+  test:
+    name: Tests
+    uses: ./.github/workflows/ci.yml
+
+  # ── 2. Build & push Docker images ───────────────────────────────────────────
+  build:
+    name: Build images
+    runs-on: ubuntu-latest
+    needs: test
+
+    permissions:
+      contents: read
+      id-token: write   # required for Workload Identity Federation
+
+    outputs:
+      image_tag: ${{ steps.tag.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate image tag
+        id: tag
+        run: echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push API image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.AR_REPO }}/api"
+          docker build \
+            -f backend/Dockerfile.prod \
+            -t "${IMAGE}:${{ steps.tag.outputs.tag }}" \
+            -t "${IMAGE}:latest" \
+            backend/
+          docker push "${IMAGE}:${{ steps.tag.outputs.tag }}"
+          docker push "${IMAGE}:latest"
+
+      - name: Build and push worker image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.AR_REPO }}/worker"
+          docker build \
+            -f backend/Dockerfile.worker.prod \
+            -t "${IMAGE}:${{ steps.tag.outputs.tag }}" \
+            -t "${IMAGE}:latest" \
+            backend/
+          docker push "${IMAGE}:${{ steps.tag.outputs.tag }}"
+          docker push "${IMAGE}:latest"
+
+      - name: Build and push frontend image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.AR_REPO }}/frontend"
+          docker build \
+            -f frontend/Dockerfile.prod \
+            -t "${IMAGE}:${{ steps.tag.outputs.tag }}" \
+            -t "${IMAGE}:latest" \
+            frontend/
+          docker push "${IMAGE}:${{ steps.tag.outputs.tag }}"
+          docker push "${IMAGE}:latest"
+
+  # ── 3. Run DB migrations ────────────────────────────────────────────────────
+  migrate:
+    name: Run migrations
+    runs-on: ubuntu-latest
+    needs: build
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Fetch DATABASE_URL from Secret Manager
+        id: db_url
+        run: |
+          SECRET=$(gcloud secrets versions access latest \
+            --secret="ged-database-url" \
+            --project="${{ env.PROJECT_ID }}")
+          echo "::add-mask::${SECRET}"
+          echo "url=${SECRET}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Cloud SQL Auth Proxy
+        run: |
+          curl -o cloud-sql-proxy \
+            "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.9.0/cloud-sql-proxy.linux.amd64"
+          chmod +x cloud-sql-proxy
+
+      - name: Get Cloud SQL instance connection name
+        id: sql_instance
+        run: |
+          INSTANCE=$(gcloud sql instances list \
+            --filter="name:ged-postgres" \
+            --format="value(connectionName)" \
+            --project="${{ env.PROJECT_ID }}")
+          echo "connection_name=${INSTANCE}" >> "$GITHUB_OUTPUT"
+
+      - name: Start Cloud SQL Auth Proxy
+        run: |
+          ./cloud-sql-proxy \
+            --port 5432 \
+            "${{ steps.sql_instance.outputs.connection_name }}" &
+          sleep 3
+
+      - name: Run migrations
+        env:
+          # Replace the private host in the DATABASE_URL with 127.0.0.1 (proxy)
+          DATABASE_URL: ${{ steps.db_url.outputs.url }}
+        run: |
+          # Rewrite the host to 127.0.0.1 so we go through the local proxy
+          PROXY_URL=$(echo "$DATABASE_URL" | sed 's|@[^:]*:|@127.0.0.1:|')
+          DATABASE_URL="$PROXY_URL" npx tsx migrations/run-migrations.ts
+        working-directory: backend
+
+  # ── 4. Deploy Cloud Run services ────────────────────────────────────────────
+  deploy:
+    name: Deploy Cloud Run
+    runs-on: ubuntu-latest
+    needs: [build, migrate]
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Deploy API
+        run: |
+          gcloud run services update ged-api \
+            --image="${{ env.REGION }}-docker.pkg.dev/${{ env.AR_REPO }}/api:${{ needs.build.outputs.image_tag }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}"
+
+      - name: Deploy Worker
+        run: |
+          gcloud run services update ged-worker \
+            --image="${{ env.REGION }}-docker.pkg.dev/${{ env.AR_REPO }}/worker:${{ needs.build.outputs.image_tag }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}"
+
+      - name: Deploy Frontend
+        run: |
+          gcloud run services update ged-frontend \
+            --image="${{ env.REGION }}-docker.pkg.dev/${{ env.AR_REPO }}/frontend:${{ needs.build.outputs.image_tag }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}"
+
+      - name: Print URLs
+        run: |
+          echo "Frontend: $(gcloud run services describe ged-frontend \
+            --region=${{ env.REGION }} --project=${{ env.PROJECT_ID }} \
+            --format='value(status.url)')"
+          echo "API:      $(gcloud run services describe ged-api \
+            --region=${{ env.REGION }} --project=${{ env.PROJECT_ID }} \
+            --format='value(status.url)')"

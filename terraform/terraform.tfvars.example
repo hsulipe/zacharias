@@ -1,0 +1,33 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it.
+
+project_id  = "your-gcp-project-id"
+region      = "us-central1"   # or e.g. southamerica-east1
+environment = "production"
+
+# GitHub repo (used for Workload Identity Federation)
+github_org  = "your-github-username-or-org"
+github_repo = "Zacharias"
+
+# Database
+db_name     = "ged_db"
+db_user     = "ged_user"
+db_password = "change-me-strong-password"
+db_tier     = "db-g1-small"   # use db-n1-standard-1 for more CPU
+
+# Secrets — must be >= 32 chars
+jwt_secret         = "change_me_in_production_jwt_secret_32chars_xxxx"
+jwt_refresh_secret = "change_me_in_production_refresh_secret_32chars_xx"
+
+# CORS — set to your frontend Cloud Run URL after first deploy, then re-apply
+cors_origin = "https://ged-frontend-xxxx-uc.a.run.app"
+
+# File limits
+max_file_size_mb = 50
+
+# SMTP — leave blank to disable email alerts
+smtp_host = ""
+smtp_port = 587
+smtp_user = ""
+smtp_pass = ""
+smtp_from = "noreply@example.com"

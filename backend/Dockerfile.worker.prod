@@ -1,0 +1,37 @@
+# ── Build stage ───────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+RUN npm prune --production
+
+# ── Runtime stage ─────────────────────────────────────────────────────────────
+FROM node:20-alpine
+
+RUN apk add --no-cache \
+    tesseract-ocr \
+    tesseract-ocr-data-por \
+    tesseract-ocr-data-eng \
+    poppler-utils \
+    ghostscript
+
+WORKDIR /app
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY package.json ./
+COPY worker-entrypoint.sh ./worker-entrypoint.sh
+RUN chmod +x worker-entrypoint.sh
+
+ENV NODE_ENV=production
+
+# Expose port for Cloud Run health checks (served by entrypoint)
+EXPOSE 8080
+
+CMD ["./worker-entrypoint.sh"]
