@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build backend image
-        run: docker build -f backend/Dockerfile backend/
+        run: docker build -f backend/Dockerfile.prod backend/
 
       - name: Build frontend image
-        run: docker build -f frontend/Dockerfile frontend/
+        run: docker build -f frontend/Dockerfile.prod frontend/

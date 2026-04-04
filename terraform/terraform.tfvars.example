@@ -1,5 +1,30 @@
 # Copy this file to terraform.tfvars and fill in your values.
 # terraform.tfvars is gitignored — never commit it.
+#
+# In CI this file is generated automatically from GitHub Actions secrets/variables:
+#   vars.*   → GitHub Actions repository variables (Settings → Secrets and variables → Variables)
+#   secrets.* → GitHub Actions repository secrets  (Settings → Secrets and variables → Secrets)
+#
+# Variable mapping:
+#   project_id       ← vars.GCP_PROJECT_ID
+#   region           ← vars.GCP_REGION
+#   environment      ← vars.ENVIRONMENT
+#   github_org       ← github.repository_owner  (built-in, no variable needed)
+#   github_repo      ← github.event.repository.name  (built-in, no variable needed)
+#   db_name          ← vars.DB_NAME
+#   db_user          ← vars.DB_USER
+#   db_password      ← secrets.DB_PASSWORD
+#   db_tier          ← vars.DB_TIER
+#   jwt_secret       ← secrets.JWT_SECRET
+#   jwt_refresh_secret ← secrets.JWT_REFRESH_SECRET
+#   cors_origin      ← vars.CORS_ORIGIN
+#   max_file_size_mb ← vars.MAX_FILE_SIZE_MB
+#   smtp_host        ← vars.SMTP_HOST
+#   smtp_port        ← vars.SMTP_PORT
+#   smtp_user        ← secrets.SMTP_USER
+#   smtp_pass        ← secrets.SMTP_PASS
+#   smtp_from        ← vars.SMTP_FROM
+#   (state bucket)   ← vars.TF_STATE_BUCKET
 
 project_id  = "your-gcp-project-id"
 region      = "us-central1"   # or e.g. southamerica-east1

@@ -140,15 +140,26 @@ jobs:
           ./cloud-sql-proxy \
             --port 5432 \
             "${{ steps.sql_instance.outputs.connection_name }}" &
-          sleep 3
+          # Wait until proxy accepts connections (up to 30s)
+          for i in $(seq 1 15); do
+            nc -z 127.0.0.1 5432 && echo "Proxy ready" && break
+            echo "Waiting for proxy... ($i)"
+            sleep 2
+          done
 
       - name: Run migrations
         env:
-          # Replace the private host in the DATABASE_URL with 127.0.0.1 (proxy)
           DATABASE_URL: ${{ steps.db_url.outputs.url }}
         run: |
-          # Rewrite the host to 127.0.0.1 so we go through the local proxy
-          PROXY_URL=$(echo "$DATABASE_URL" | sed 's|@[^:]*:|@127.0.0.1:|')
+          # Rewrite only the hostname to 127.0.0.1 using Python to safely handle
+          # special characters in the password (e.g. @, %, etc.)
+          PROXY_URL=$(python3 -c "
+          import urllib.parse, sys
+          u = urllib.parse.urlparse(sys.argv[1])
+          netloc = u.netloc.rsplit('@', 1)
+          u = u._replace(netloc=netloc[0] + '@127.0.0.1:' + str(u.port))
+          print(u.geturl())
+          " "$DATABASE_URL")
           DATABASE_URL="$PROXY_URL" npx tsx migrations/run-migrations.ts
         working-directory: backend
 

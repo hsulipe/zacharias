@@ -7,13 +7,14 @@ terraform {
     }
   }
 
-  # Uncomment after creating the state bucket:
+  # State bucket is supplied at init time via -backend-config in the workflow.
+  # Create it once manually:
   #   gsutil mb -p YOUR_PROJECT_ID gs://tf-state-YOUR_PROJECT_ID
   #   gsutil versioning set on gs://tf-state-YOUR_PROJECT_ID
-  # backend "gcs" {
-  #   bucket = "tf-state-YOUR_PROJECT_ID"
-  #   prefix = "ged"
-  # }
+  # Then set TF_STATE_BUCKET as a GitHub Actions variable.
+  backend "gcs" {
+    # bucket and prefix are injected by -backend-config in terraform.yml
+  }
 }
 
 provider "google" {
