@@ -42,7 +42,7 @@ export default function DocumentDetailPage() {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [pdfLoaded, setPdfLoaded] = useState(false); // tracks when PDF.js has parsed the document
+  const [_pdfLoaded, setPdfLoaded] = useState(false); // tracks when PDF.js has parsed the document
   const [annotationMode, setAnnotationMode] = useState<"highlight" | "comment" | null>(null);
   const [newAnnotColor, setNewAnnotColor] = useState("#FBBF24");
   const [newAnnotContent, setNewAnnotContent] = useState("");
@@ -68,7 +68,7 @@ export default function DocumentDetailPage() {
   const [showDlForm, setShowDlForm] = useState(false);
 
   // Queries
-  const { data: docData, refetch: refetchDoc } = useQuery({
+  const { data: docData } = useQuery({
     queryKey: ["document", id],
     queryFn: () =>
       api.get<{ document: Document; groups: Group[] }>(`/documents/${id}`).then((r) => r.data),

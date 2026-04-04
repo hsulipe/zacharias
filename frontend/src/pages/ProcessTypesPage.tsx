@@ -461,7 +461,7 @@ export default function ProcessTypesPage() {
 function Modal({
   title,
   children,
-  onClose,
+  onClose: _onClose,
 }: {
   title: string;
   children: React.ReactNode;
