@@ -38,6 +38,9 @@ export default function Layout() {
               <NavLink to="/groups" className={NAV_LINK_CLASS}>
                 Grupos
               </NavLink>
+              <NavLink to="/roles" className={NAV_LINK_CLASS}>
+                Funções (RBAC)
+              </NavLink>
               <NavLink to="/process-types" className={NAV_LINK_CLASS}>
                 Tipos de Processo
               </NavLink>

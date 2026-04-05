@@ -5,8 +5,11 @@ import { Document, PaginatedResult, UserRole } from "../../types";
 import { config } from "../../config";
 
 // Builds the RBAC visibility SQL clause.
-// Admins see all. Others see: their own uploads, OR docs in their groups.
-// Documents with NO groups assigned are visible only to uploader and admins.
+// Admins see all. Others see (additive, all sources unioned):
+//   1. Their own uploads
+//   2. Docs in groups they belong to (legacy document_groups)
+//   3. Docs in roles assigned directly to them (user_role_bindings)
+//   4. Docs in roles assigned to groups they belong to (group_role_bindings)
 function visibilityClause(userRole: UserRole, userId: string, idx: { n: number }): {
   sql: string;
   values: unknown[];
@@ -14,13 +17,29 @@ function visibilityClause(userRole: UserRole, userId: string, idx: { n: number }
   if (userRole === "admin") return { sql: "1=1", values: [] };
   const i1 = idx.n++;
   const i2 = idx.n++;
+  const i3 = idx.n++;
+  const i4 = idx.n++;
   return {
-    sql: `(documents.uploader_id = $${i1} OR EXISTS (
-      SELECT 1 FROM document_groups dg
-      JOIN group_members gm ON gm.group_id = dg.group_id
-      WHERE dg.document_id = documents.id AND gm.user_id = $${i2}
-    ))`,
-    values: [userId, userId],
+    sql: `(
+      documents.uploader_id = $${i1}
+      OR EXISTS (
+        SELECT 1 FROM document_groups dg
+        JOIN group_members gm ON gm.group_id = dg.group_id
+        WHERE dg.document_id = documents.id AND gm.user_id = $${i2}
+      )
+      OR EXISTS (
+        SELECT 1 FROM role_documents rd
+        JOIN user_role_bindings urb ON urb.role_id = rd.role_id
+        WHERE rd.document_id = documents.id AND urb.user_id = $${i3}
+      )
+      OR EXISTS (
+        SELECT 1 FROM role_documents rd
+        JOIN group_role_bindings grb ON grb.role_id = rd.role_id
+        JOIN group_members gm ON gm.group_id = grb.group_id
+        WHERE rd.document_id = documents.id AND gm.user_id = $${i4}
+      )
+    )`,
+    values: [userId, userId, userId, userId],
   };
 }
 

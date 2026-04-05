@@ -63,6 +63,34 @@ export interface AuthState {
   logout: () => void;
 }
 
+// Roles (RBAC)
+export type PermissionLevel = "viewer" | "editor";
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string | null;
+  permission_level: PermissionLevel;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface RoleDocument {
+  role_id: string;
+  document_id: string;
+  document_title?: string;
+  document_filename?: string;
+}
+
+export interface RoleBinding {
+  role_id: string;
+  subject_id: string;
+  subject_type: "user" | "group";
+  subject_name?: string;
+  subject_email?: string | null;
+  assigned_at: string;
+}
+
 // Groups
 export interface Group {
   id: string;

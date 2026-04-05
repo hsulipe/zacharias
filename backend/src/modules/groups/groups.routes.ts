@@ -11,6 +11,7 @@ import {
   addGroupMember,
   removeGroupMember,
 } from "./groups.service";
+import { getGroupRoles, bindGroupToRole, unbindGroupFromRole, getRoleById } from "../roles/roles.service";
 
 export async function groupRoutes(fastify: FastifyInstance) {
   // GET /groups
@@ -89,6 +90,47 @@ export async function groupRoutes(fastify: FastifyInstance) {
       const group = await getGroupById(fastify.db, id);
       if (!group) return reply.code(404).send({ error: "Group not found" });
       await removeGroupMember(fastify.db, id, userId);
+      return reply.code(204).send();
+    }
+  );
+
+  // GET /groups/:id/roles — list roles assigned to this group
+  fastify.get(
+    "/:id/roles",
+    { preHandler: [requireAuth, requireRole("admin")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const group = await getGroupById(fastify.db, id);
+      if (!group) return reply.code(404).send({ error: "Group not found" });
+      const roles = await getGroupRoles(fastify.db, id);
+      return reply.send({ roles });
+    }
+  );
+
+  // POST /groups/:id/roles — assign a role to this group
+  fastify.post(
+    "/:id/roles",
+    { preHandler: [requireAuth, requireRole("admin")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const caller = request.user as JwtPayload;
+      const { role_id } = z.object({ role_id: z.string().uuid() }).parse(request.body);
+      const group = await getGroupById(fastify.db, id);
+      if (!group) return reply.code(404).send({ error: "Group not found" });
+      const role = await getRoleById(fastify.db, role_id);
+      if (!role) return reply.code(404).send({ error: "Role not found" });
+      await bindGroupToRole(fastify.db, role_id, id, caller.sub);
+      return reply.code(201).send({ ok: true });
+    }
+  );
+
+  // DELETE /groups/:id/roles/:roleId — remove a role from this group
+  fastify.delete(
+    "/:id/roles/:roleId",
+    { preHandler: [requireAuth, requireRole("admin")] },
+    async (request, reply) => {
+      const { id, roleId } = request.params as { id: string; roleId: string };
+      await unbindGroupFromRole(fastify.db, roleId, id);
       return reply.code(204).send();
     }
   );

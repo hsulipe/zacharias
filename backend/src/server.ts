@@ -15,6 +15,7 @@ import { documentRoutes } from "./modules/documents/documents.routes";
 import { metadataRoutes } from "./modules/metadata/metadata.routes";
 import { auditRoutes } from "./modules/audit/audit.routes";
 import { groupRoutes } from "./modules/groups/groups.routes";
+import { roleRoutes } from "./modules/roles/roles.routes";
 import { processTypeRoutes } from "./modules/process/process.routes";
 import { deadlineRoutes } from "./modules/deadlines/deadlines.routes";
 import { annotationRoutes } from "./modules/annotations/annotations.routes";
@@ -32,7 +33,7 @@ export async function buildApp() {
   // Security
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, {
-    origin: config.CORS_ORIGIN,
+    origin: true,
     credentials: true,
   });
   await app.register(rateLimit, {
@@ -81,6 +82,7 @@ export async function buildApp() {
   await app.register(annotationRoutes, { prefix: "/documents" });
   await app.register(auditRoutes, { prefix: "/audit" });
   await app.register(groupRoutes, { prefix: "/groups" });
+  await app.register(roleRoutes, { prefix: "/roles" });
   await app.register(processTypeRoutes, { prefix: "/process-types" });
 
   // Health check

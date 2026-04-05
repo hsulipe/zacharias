@@ -8,6 +8,7 @@ import DocumentDetailPage from "./pages/DocumentDetailPage";
 import AuditPage from "./pages/AuditPage";
 import UsersPage from "./pages/UsersPage";
 import GroupsPage from "./pages/GroupsPage";
+import RolesPage from "./pages/RolesPage";
 import ProcessTypesPage from "./pages/ProcessTypesPage";
 import Layout from "./components/Layout";
 
@@ -58,6 +59,14 @@ export default function App() {
           element={
             <AdminRoute>
               <GroupsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="roles"
+          element={
+            <AdminRoute>
+              <RolesPage />
             </AdminRoute>
           }
         />

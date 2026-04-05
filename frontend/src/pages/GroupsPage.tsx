@@ -1,8 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
-import { Group, GroupMember, User } from "../types";
+import { Group, GroupMember, User, Role } from "../types";
 import toast from "react-hot-toast";
+
+const PERMISSION_COLOR: Record<string, string> = {
+  viewer: "bg-blue-100 text-blue-700",
+  editor: "bg-amber-100 text-amber-700",
+};
+const PERMISSION_LABEL: Record<string, string> = {
+  viewer: "Visualizador",
+  editor: "Editor",
+};
 
 export default function GroupsPage() {
   const queryClient = useQueryClient();
@@ -11,6 +20,7 @@ export default function GroupsPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [addUserId, setAddUserId] = useState("");
+  const [addRoleId, setAddRoleId] = useState("");
 
   const { data: groupsData } = useQuery({
     queryKey: ["groups"],
@@ -29,6 +39,18 @@ export default function GroupsPage() {
   const { data: usersData } = useQuery({
     queryKey: ["users"],
     queryFn: () => api.get<{ users: User[] }>("/auth/users").then((r) => r.data),
+  });
+
+  const { data: groupRolesData } = useQuery({
+    queryKey: ["group-roles", selectedGroup?.id],
+    queryFn: () =>
+      api.get<{ roles: Role[] }>(`/groups/${selectedGroup!.id}/roles`).then((r) => r.data),
+    enabled: !!selectedGroup,
+  });
+
+  const { data: allRolesData } = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => api.get<{ roles: Role[] }>("/roles").then((r) => r.data),
   });
 
   const createMutation = useMutation({
@@ -75,13 +97,38 @@ export default function GroupsPage() {
     onError: () => toast.error("Erro ao remover membro"),
   });
 
+  const addRoleMutation = useMutation({
+    mutationFn: ({ groupId, roleId }: { groupId: string; roleId: string }) =>
+      api.post(`/groups/${groupId}/roles`, { role_id: roleId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-roles", selectedGroup?.id] });
+      setAddRoleId("");
+      toast.success("Função vinculada");
+    },
+    onError: () => toast.error("Erro ao vincular função"),
+  });
+
+  const removeRoleMutation = useMutation({
+    mutationFn: ({ groupId, roleId }: { groupId: string; roleId: string }) =>
+      api.delete(`/groups/${groupId}/roles/${roleId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-roles", selectedGroup?.id] });
+      toast.success("Função desvinculada");
+    },
+    onError: () => toast.error("Erro ao desvincular função"),
+  });
+
   const groups = groupsData?.groups ?? [];
   const members = groupDetail?.members ?? [];
   const users = usersData?.users ?? [];
+  const groupRoles = groupRolesData?.roles ?? [];
+  const allRoles = allRolesData?.roles ?? [];
 
-  // Users not yet in the group
   const memberIds = new Set(members.map((m) => m.user_id));
   const availableUsers = users.filter((u) => !memberIds.has(u.id));
+
+  const assignedRoleIds = new Set(groupRoles.map((r) => r.id));
+  const availableRoles = allRoles.filter((r) => !assignedRoleIds.has(r.id));
 
   return (
     <div className="p-8">
@@ -190,6 +237,62 @@ export default function GroupsPage() {
                 </button>
               </div>
             )}
+
+            {/* Roles section */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Funções vinculadas</h4>
+              <div className="space-y-2 mb-3">
+                {groupRoles.length === 0 && (
+                  <p className="text-sm text-gray-400">Nenhuma função vinculada</p>
+                )}
+                {groupRoles.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex justify-between items-center text-sm bg-gray-50 px-3 py-2 rounded"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-800">{r.name}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${PERMISSION_COLOR[r.permission_level]}`}>
+                        {PERMISSION_LABEL[r.permission_level]}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() =>
+                        removeRoleMutation.mutate({ groupId: selectedGroup.id, roleId: r.id })
+                      }
+                      className="text-gray-400 hover:text-red-500 text-lg leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {availableRoles.length > 0 && (
+                <div className="flex gap-2">
+                  <select
+                    className="input text-sm flex-1"
+                    value={addRoleId}
+                    onChange={(e) => setAddRoleId(e.target.value)}
+                  >
+                    <option value="">Vincular função...</option>
+                    {availableRoles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({PERMISSION_LABEL[r.permission_level]})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    disabled={!addRoleId || addRoleMutation.isPending}
+                    onClick={() =>
+                      addRoleMutation.mutate({ groupId: selectedGroup.id, roleId: addRoleId })
+                    }
+                    className="btn-primary text-sm"
+                  >
+                    Vincular
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
