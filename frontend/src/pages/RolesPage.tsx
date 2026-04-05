@@ -49,7 +49,7 @@ export default function RolesPage() {
   const { data: docsData } = useQuery({
     queryKey: ["documents-all"],
     queryFn: () =>
-      api.get<{ data: Document[] }>("/documents?limit=500").then((r) => r.data),
+      api.get<{ data: Document[] }>("/documents?limit=100").then((r) => r.data),
   });
 
   const { data: usersData } = useQuery({
